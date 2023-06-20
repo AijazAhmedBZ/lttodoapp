@@ -1,25 +1,33 @@
-import { db } from '@vercel/postgres';
+import {  Client, QueryResult } from '@vercel/postgres';
 import { request } from 'http';
 import { NextRequest, NextResponse } from "next/server";
+import {Todo, NewTodo, db, toddoTable} from "@/lib/drizzle"
+import { sql } from '@vercel/postgres';
+
 
 export async function GET(request:NextRequest){
- const client = await db.connect();
-try{
-    await client.sql`CREATE TABLE IF NOT EXISTS Todos(id serial, task varchar(255));`
-    return NextResponse.json({message:"You called this API"})
+ 
+ try{
+    await sql`CREATE TABLE IF NOT EXISTS Todos(id serial, task varchar(255));`
+    const res = await db.select().from(toddoTable).execute()
+
+    res
+    return NextResponse.json({ data: res})
 } catch (err) {
-    console.log(err)
+    console.log((err as {message: "string"}).message)
     return NextResponse.json({message:"Something went wtong"})
 } 
 }
 
 export async function POST(request:NextRequest){
-    const client = await db.connect();
-const req = await request.json();
+ const req = await request.json();
 try {
     if (req.task){
-        await client.sql`INSERT INTO Todos(task) VALUES(${req.task})`
-        return NextResponse.json({message: "Data added successfully"})
+        const res = await db.insert(toddoTable).values({
+            task:req.task,
+        }).returning()
+        console.log(res)
+        return NextResponse.json({message: "Data added successfully", data: res})
     }else
     throw new Error ("Task field is required")
 } catch (error) {
